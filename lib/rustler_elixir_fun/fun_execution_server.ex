@@ -1,7 +1,29 @@
 defmodule RustlerElixirFun.FunExecutionServer do
+  @moduledoc """
+  This GenServer listens for native code to send sets of functions + parameters to it.
+
+  It will then execute these functions (by calling `apply(fun, parameters)` on them),
+  and return the results to the native code.
+
+
+    iex> {:ok, pid} = RustlerElixirFun.FunExecutionServer.start_link([])
+    iex> RustlerElixirFun.Internal.apply_elixir_fun(pid, fn x -> x * 2 end, [10]) end)
+    {:ok, 20}
+
+  It is recommended to use a registered name (and start the process in a supervision tree)
+  to make sure that you won't have to handle checking PIDs for aliveness in native code:
+
+    iex> {:ok, _} = RustlerElixirFun.FunExecutionServer.start_link([name: :my_fancy_worker_server])
+    iex> RustlerElixirFun.Internal.apply_elixir_fun(:my_fancy_worker_server, fn x -> x * 2 end, [42]) end)
+    {:ok, 42}
+
+  If you might call a function many times in short succession, or want to call many different functions,
+  it might make sense to use `RustlerElixirFun.Pool` instead.
+"""
+
   use GenServer
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, {})
+  def start_link(gen_server_options) do
+    GenServer.start_link(__MODULE__, {}, gen_server_options)
     # GenServer.start_link(__MODULE__, {}, name: __MODULE__)
   end
 
@@ -11,17 +33,15 @@ defmodule RustlerElixirFun.FunExecutionServer do
   end
 
   @impl true
-  # Used when we call it directly
+  # Used when called directly from native code
   def handle_info({fun, params, future}, state) when is_function(fun) and is_list(params) and is_reference(future) do
     run_function(fun, params, future)
     {:noreply, state}
   end
 
   @impl true
-  # Used when we call it from a pool
+  # Used when called from a pool
   def handle_cast({{fun, params, future}, from}, state) when is_function(fun) and is_list(params) and is_reference(future) do
-    IO.puts("Using worker #{inspect(self())}")
-
     run_function(fun, params, future)
     GenServer.cast(from, {:checkin, self()})
     {:noreply, state}

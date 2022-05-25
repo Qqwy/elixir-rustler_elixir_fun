@@ -87,6 +87,16 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
     Ok(())
 }
 
+/// Exposed as NIF for easy testing
+/// But normally, you'd want to call `apply_elixir_fun` from some other Rust code instead.
+#[rustler::nif(
+    name = "apply_elixir_fun",
+    schedule = "DirtyCpu"
+)]
+fn apply_elixir_fun_nif<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
+    apply_elixir_fun(env, pid_or_name, fun, parameters)
+}
+
 /// Will run `fun` with the parameters `parameters`
 /// on the process indicated by `pid_or_name`.
 ///
@@ -97,7 +107,13 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
 /// - `{:error, {:throw, value}}` if a value was `throw`n.
 ///
 /// Raises an ArgumentError (e.g. returns `Err(Error::BadArg)` on the Rust side) if `fun` is not a function or `parameters` is not a list.
-#[rustler::nif(schedule = "DirtyCpu")]
+///
+/// # Notes
+///
+/// - Be sure to register any NIF that calls this function as a 'Dirty CPU NIF'! (by using `#[rustler::nif(schedule = "DirtyCpu")]`).
+///   This is important for two reasons:
+///     1. calling back into Elixir might indeed take quite some time.
+///     2. we want to prevent schedulers to wait for themselves, which might otherwise sometimes happen.
 fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
     if !fun.is_fun() {
         return Err(Error::BadArg)
@@ -111,15 +127,17 @@ fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, para
     let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
     do_send_to_elixir(env, pid_or_name, fun_tuple)?;
 
-    // println!("Waiting for response");
     let result = future.wait_until_filled()?;
     let result = result.encode(env);
     Ok(result)
 }
 
+/// Called by the Elixir code whenever a function run is completed.
+///
+/// Should not be called manually from the Elixir side.
 #[rustler::nif]
 fn fill_future<'a>(result: StoredTerm, future: ResourceArc<ManualFuture>) {
     future.fill(result);
 }
 
-rustler::init!("Elixir.RustlerElixirFun.Internal", [apply_elixir_fun, fill_future], load = load);
+rustler::init!("Elixir.RustlerElixirFun.Internal", [apply_elixir_fun_nif, fill_future], load = load);

@@ -4,11 +4,33 @@ use rustler::error::Error;
 use rustler_sys;
 use std::mem::MaybeUninit;
 use rustler::wrapper::ErlNifPid;
-use std::sync::{Mutex, CondVar};
+use std::sync::{Mutex, Condvar};
+use std::time::Duration;
 
 struct WaitForResponse {
-    mutex: Mutex<bool>,
-    cond: CondVar,
+    mutex: Mutex<Option<bool>>,
+    cond: Condvar,
+}
+
+impl WaitForResponse {
+    pub fn new() -> WaitForResponse {
+        WaitForResponse {mutex: Mutex::new(None), cond: Condvar::new()}
+    }
+
+    pub fn wait_until_unlocked(& self) {
+        let guard = self.cond.wait_timeout_while(
+            self.mutex.lock().unwrap(),
+            Duration::from_millis(5000),
+            |pending| { pending.is_some() }
+        )
+            .unwrap();
+        println!("{:?}", guard)
+    }
+    pub fn unlock<'a>(&self, value: Term<'a>) {
+        let mut started = self.mutex.lock().unwrap();
+        *started = Some(true);
+        self.cond.notify_all();
+    }
 }
 
 fn load(env: Env, _info: Term) -> bool {
@@ -65,20 +87,30 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
 #[rustler::nif]
 fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<(), Error> {
     if fun.is_fun() {
-        let lock_and_cond = ResourceArc::new((Mutex::new(true), Condvar::new()));
-        let lock_and_cond2 = Arc::clone(lock_and_cond);
+        let wait1 = ResourceArc::new(WaitForResponse::new());
+        // let wait2 = ResourceArc::clone(&wait1);
+        // let lock_and_cond = ResourceArc::new((Mutex::new(true), Condvar::new()));
+        // let lock_and_cond2 = Arc::clone(lock_and_cond);
 
-        let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters]);
+        let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, wait1.encode(env)]);
+
         // env.send(pid, fun_tuple)
-        do_send_to_elixir(env, pid_or_name, fun_tuple)
+        do_send_to_elixir(env, pid_or_name, fun_tuple);
+
+        println!("Waiting for response");
+        wait1.wait_until_unlocked();
+
+        println!("Finished waiting for response!");
+        Ok(())
     } else {
         Err(Error::Atom("`apply_elixir_fun` called with a term that is not a function."))
     }
 }
 
 #[rustler::nif]
-fn callback_result<'a>(env: Env<'a>, result: Term<'a>) {
-    println!("{:?}", result);
+fn callback_result<'a>(env: Env<'a>, result: Term<'a>, wait2: ResourceArc<WaitForResponse>) {
+    println!("callback result called with: {:?}", result);
+    wait2.unlock(result);
 }
 
-rustler::init!("Elixir.RustlerElixirFun", [send_to_elixir, apply_elixir_fun]);
+rustler::init!("Elixir.RustlerElixirFun", [send_to_elixir, apply_elixir_fun, callback_result], load = load);

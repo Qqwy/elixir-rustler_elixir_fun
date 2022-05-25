@@ -1,5 +1,0 @@
-(undo-tree-save-format-version . 1)
-"14e395d53663c9cee50471a70fbfe1abe1c78b80"
-[nil current nil nil (25230 26776 147177 677000) 0 nil]
-([nil nil ((1199 . 1206) (t 24889 56687 127373 146000)) ((#(", Debug" 0 7 (fontified t face font-lock-preprocessor-face)) . 1199) (undo-tree-id0 . -6) (undo-tree-id1 . -6) (t 25230 26725 118355 144000)) (25230 26725 71942 640000) 0 nil])
-nil

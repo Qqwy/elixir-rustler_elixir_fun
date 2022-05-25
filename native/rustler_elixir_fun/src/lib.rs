@@ -59,7 +59,7 @@ mod atoms {
 /// Uses [`enif_whereis_pid`](https://www.erlang.org/doc/man/erl_nif.html#enif_whereis_pid) under the hood.
 ///
 /// NOTE: Current implementation is very dirty, as we use transmutation to build a struct whose internals are not exposed by Rustler itself.
-fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
+pub fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
     let mut enif_pid = MaybeUninit::uninit();
 
     if unsafe { rustler_sys::enif_whereis_pid(env.as_c_arg(), name.as_c_arg(), enif_pid.as_mut_ptr()) } == 0 {
@@ -75,11 +75,6 @@ fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
     }
 }
 
-// #[rustler::nif]
-// fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
-//     do_send_to_elixir(env, pid, value)
-// }
-
 fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
     let pid : LocalPid = pid.decode().or_else(|_| whereis_pid(env, pid))?;
 
@@ -87,12 +82,12 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
     Ok(())
 }
 
-/// Exposed as NIF for easy testing
-/// But normally, you'd want to call `apply_elixir_fun` from some other Rust code instead.
 #[rustler::nif(
     name = "apply_elixir_fun",
     schedule = "DirtyCpu"
 )]
+/// Exposed as NIF for easy testing
+/// But normally, you'd want to call `apply_elixir_fun` from some other Rust code instead.
 fn apply_elixir_fun_nif<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
     apply_elixir_fun(env, pid_or_name, fun, parameters)
 }
@@ -114,7 +109,7 @@ fn apply_elixir_fun_nif<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
 ///   This is important for two reasons:
 ///     1. calling back into Elixir might indeed take quite some time.
 ///     2. we want to prevent schedulers to wait for themselves, which might otherwise sometimes happen.
-fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
+pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
     if !fun.is_fun() {
         return Err(Error::BadArg)
     }
@@ -132,10 +127,10 @@ fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, para
     Ok(result)
 }
 
+#[rustler::nif]
 /// Called by the Elixir code whenever a function run is completed.
 ///
 /// Should not be called manually from the Elixir side.
-#[rustler::nif]
 fn fill_future<'a>(result: StoredTerm, future: ResourceArc<ManualFuture>) {
     future.fill(result);
 }

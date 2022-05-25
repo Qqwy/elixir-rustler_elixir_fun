@@ -29,7 +29,7 @@ impl ManualFuture {
             .unwrap();
         if wait_timeout_result.timed_out() {
             // println!("{}", "Unfortunately timed out!")
-            Err(Error::Atom("Unfortunately timed out!"))
+            Err(Error::Term(Box::new("Unfortunately timed out!".to_string())))
         } else {
             let val = guard.take().unwrap();
             Ok(val)
@@ -90,8 +90,8 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
 /// Will run `fun` with the parameters `parameters`
 /// on the process indicated by `pid_or_name`.
 ///
-/// Returns an Ok result whose content is a term which might be one of:
-/// - `{:ok, some_term}` on a successfull call.
+/// On success, returns an Ok result whose content is a term which might be one of:
+/// - `{:ok, some_term}` on a successfull function call.
 /// - `{:error, {:exception, some_exception}}` if the function `raise`d an exception.
 /// - `{:error, {:exit, exit_message}}` if an exit was caught.
 /// - `{:error, {:throw, value}}` if a value was `throw`n.
@@ -113,7 +113,7 @@ fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, para
 
     // println!("Waiting for response");
     let result = future.wait_until_filled()?;
-    let result = result.encode(env); // Turns StoredTerm into Term
+    let result = result.encode(env);
     Ok(result)
 }
 
@@ -122,4 +122,4 @@ fn fill_future<'a>(result: StoredTerm, future: ResourceArc<ManualFuture>) {
     future.fill(result);
 }
 
-rustler::init!("Elixir.RustlerElixirFun", [apply_elixir_fun, fill_future], load = load);
+rustler::init!("Elixir.RustlerElixirFun.Internal", [apply_elixir_fun, fill_future], load = load);

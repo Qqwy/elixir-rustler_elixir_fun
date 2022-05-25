@@ -1,6 +1,8 @@
 # RustlerElixirFun
 
-**TODO: Add description**
+Calling an Elixir or Erlang function from native Rust code.
+
+This is a work-in-progress.
 
 ## Installation
 

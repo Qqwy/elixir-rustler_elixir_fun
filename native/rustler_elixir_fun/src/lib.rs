@@ -10,17 +10,17 @@ use std::sync::{Mutex, Condvar};
 use std::time::Duration;
 use crate::stored_term::StoredTerm;
 
-struct WaitForResponse {
+struct ManualFuture {
     mutex: Mutex<Option<StoredTerm>>,
     cond: Condvar,
 }
 
-impl WaitForResponse {
-    pub fn new() -> WaitForResponse {
-        WaitForResponse {mutex: Mutex::new(None), cond: Condvar::new()}
+impl ManualFuture {
+    pub fn new() -> ManualFuture {
+        ManualFuture {mutex: Mutex::new(None), cond: Condvar::new()}
     }
 
-    pub fn wait_until_unlocked(& self) -> Result<StoredTerm, Error> {
+    pub fn wait_until_filled(& self) -> Result<StoredTerm, Error> {
         let (mut guard, wait_timeout_result) = self.cond.wait_timeout_while(
             self.mutex.lock().unwrap(),
             Duration::from_millis(5000),
@@ -36,7 +36,7 @@ impl WaitForResponse {
         }
         // println!("{:?}", guard)
     }
-    pub fn unlock(&self, value: StoredTerm) {
+    pub fn fill(&self, value: StoredTerm) {
         let mut started = self.mutex.lock().unwrap();
         *started = Some(value);
         self.cond.notify_all();
@@ -44,7 +44,7 @@ impl WaitForResponse {
 }
 
 fn load(env: Env, _info: Term) -> bool {
-    rustler::resource!(WaitForResponse, env);
+    rustler::resource!(ManualFuture, env);
     true
 }
 
@@ -55,11 +55,10 @@ mod atoms {
     }
 }
 
-#[rustler::nif]
-fn add(a: i64, b: i64) -> i64 {
-    a + b
-}
-
+/// Attempts to turn `name` into a LocalPid
+/// Uses [`enif_whereis_pid`](https://www.erlang.org/doc/man/erl_nif.html#enif_whereis_pid) under the hood.
+///
+/// NOTE: Current implementation is very dirty, as we use transmutation to build a struct whose internals are not exposed by Rustler itself.
 fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
     let mut enif_pid = MaybeUninit::uninit();
 
@@ -76,54 +75,49 @@ fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
     }
 }
 
-#[rustler::nif]
-fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
-    do_send_to_elixir(env, pid, value)
-    // let binary = String::from("Hello world!").encode(env);
-    // let pid : LocalPid = pid.decode().or_else(|_| whereis_pid(env, pid))?;
-
-    // env.send(&pid, binary);
-    // Ok(())
-}
+// #[rustler::nif]
+// fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
+//     do_send_to_elixir(env, pid, value)
+// }
 
 fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
-    // let binary = String::from("Hello world!").encode(env);
     let pid : LocalPid = pid.decode().or_else(|_| whereis_pid(env, pid))?;
 
     env.send(&pid, value);
     Ok(())
 }
 
+/// Will run `fun` with the parameters `parameters`
+/// on the process indicated by `pid_or_name`.
+///
+/// Returns:
+/// - `{:ok, some_term}` on a successfull call
+/// - `{:error, {:exception, some_exception}}` if the function `raise`d an exception.
+/// - `{:error, {:exit, exit_message}}` if an exit was caught.
+/// - `{:error, {:throw, value}}` if a value was `throw`n.
+/// - `{:error, some_string}` if `pid_or_name` was not found or `fun` is not a function.
+///
+/// TODO potentially raise ArgumentErrors instead when incorrect `fun` or `parameters` are passed?
 #[rustler::nif(schedule = "DirtyCpu")]
 fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
     if fun.is_fun() {
-        let wait1 = ResourceArc::new(WaitForResponse::new());
-        // let wait2 = ResourceArc::clone(&wait1);
-        // let lock_and_cond = ResourceArc::new((Mutex::new(true), Condvar::new()));
-        // let lock_and_cond2 = Arc::clone(lock_and_cond);
-
-        let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, wait1.encode(env)]);
-
-        // env.send(pid, fun_tuple)
+        let future = ResourceArc::new(ManualFuture::new());
+        let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
         do_send_to_elixir(env, pid_or_name, fun_tuple)?;
 
-        println!("Waiting for response");
-        let result = wait1.wait_until_unlocked()?;
-        let result2 = result.encode(env);
+        // println!("Waiting for response");
+        let result = future.wait_until_filled()?;
+        let result = result.encode(env);
 
-        println!("Finished waiting for response!");
-
-        println!("result: {:?}", result2);
-        Ok(result2)
+        Ok(result)
     } else {
         Err(Error::Term(Box::new("`apply_elixir_fun` called with a term that is not a function.")))
     }
 }
 
 #[rustler::nif]
-fn callback_result<'a>(result: StoredTerm, wait2: ResourceArc<WaitForResponse>) {
-    println!("callback result called");
-    wait2.unlock(result);
+fn fill_future<'a>(result: StoredTerm, future: ResourceArc<ManualFuture>) {
+    future.fill(result);
 }
 
-rustler::init!("Elixir.RustlerElixirFun", [send_to_elixir, apply_elixir_fun, callback_result], load = load);
+rustler::init!("Elixir.RustlerElixirFun", [apply_elixir_fun, fill_future], load = load);

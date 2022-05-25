@@ -40,6 +40,7 @@ defmodule RustlerElixirFun do
       {:ok, {}}
     end
 
+    @impl true
     def handle_info({fun, params, future}, state) when is_function(fun) and is_list(params) do
       IO.inspect("Foo Received function and params: #{inspect(fun)}, #{inspect(params)}")
       result =
@@ -55,15 +56,8 @@ defmodule RustlerElixirFun do
           good_result ->
             {:ok, good_result}
         end
-      IO.inspect(result, label: :result)
+      # IO.inspect(result, label: :result)
       RustlerElixirFun.fill_future(result, future)
-
-      {:noreply, state}
-    end
-
-    @impl true
-    def handle_info(msg, state) do
-      IO.inspect("Foo Received other message: #{inspect(msg)}")
 
       {:noreply, state}
     end

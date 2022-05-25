@@ -90,29 +90,31 @@ fn do_send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result
 /// Will run `fun` with the parameters `parameters`
 /// on the process indicated by `pid_or_name`.
 ///
-/// Returns:
-/// - `{:ok, some_term}` on a successfull call
+/// Returns an Ok result whose content is a term which might be one of:
+/// - `{:ok, some_term}` on a successfull call.
 /// - `{:error, {:exception, some_exception}}` if the function `raise`d an exception.
 /// - `{:error, {:exit, exit_message}}` if an exit was caught.
 /// - `{:error, {:throw, value}}` if a value was `throw`n.
-/// - `{:error, some_string}` if `pid_or_name` was not found or `fun` is not a function.
 ///
-/// TODO potentially raise ArgumentErrors instead when incorrect `fun` or `parameters` are passed?
+/// Raises an ArgumentError (e.g. returns `Err(Error::BadArg)` on the Rust side) if `fun` is not a function or `parameters` is not a list.
 #[rustler::nif(schedule = "DirtyCpu")]
 fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
-    if fun.is_fun() {
-        let future = ResourceArc::new(ManualFuture::new());
-        let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
-        do_send_to_elixir(env, pid_or_name, fun_tuple)?;
-
-        // println!("Waiting for response");
-        let result = future.wait_until_filled()?;
-        let result = result.encode(env);
-
-        Ok(result)
-    } else {
-        Err(Error::Term(Box::new("`apply_elixir_fun` called with a term that is not a function.")))
+    if !fun.is_fun() {
+        return Err(Error::BadArg)
     }
+
+    if !parameters.is_list() {
+        return Err(Error::BadArg)
+    }
+
+    let future = ResourceArc::new(ManualFuture::new());
+    let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
+    do_send_to_elixir(env, pid_or_name, fun_tuple)?;
+
+    // println!("Waiting for response");
+    let result = future.wait_until_filled()?;
+    let result = result.encode(env); // Turns StoredTerm into Term
+    Ok(result)
 }
 
 #[rustler::nif]

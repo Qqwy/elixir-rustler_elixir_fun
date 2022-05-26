@@ -7,7 +7,11 @@ defmodule RustlerElixirFun.MixProject do
       version: "0.1.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description: "Call back into Elixir code from within a NIF implemented in Rust",
+      licenses: ["MIT"],
+      source_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
+      homepage_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
     ]
   end
 

@@ -4,7 +4,7 @@ defmodule RustlerElixirFun.MixProject do
   def project do
     [
       app: :rustler_elixir_fun,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -42,6 +42,16 @@ defmodule RustlerElixirFun.MixProject do
       source_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
       homepage_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
       links: %{"GitHub" => "https://github.com/Qqwy/elixir-rustler_elixir_fun"},
+      files: [
+        "mix.exs",
+        "lib",
+        "LICENSE",
+        "README.md",
+        "media",
+        "native/rustler_elixir_fun_nif/src",
+        "native/rustler_elixir_fun_nif/Cargo.toml",
+        "native/rustler_elixir_fun_nif/Cargo.lock",
+      ]
     ]
   end
 end

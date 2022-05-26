@@ -1,11 +1,11 @@
 use rustler::*;
 use rustler::error::Error;
 use rustler_stored_term::StoredTerm;
-use rustler_elixir_fun_sys;
-use rustler_elixir_fun_sys::ManualFuture;
+use rustler_elixir_fun;
+use rustler_elixir_fun::ManualFuture;
 
 fn load(env: Env, info: Term) -> bool {
-    rustler_elixir_fun_sys::load(env, info)
+    rustler_elixir_fun::load(env, info)
 }
 
 mod atoms {
@@ -20,15 +20,16 @@ mod atoms {
     schedule = "DirtyCpu"
 )]
 /// Exposed as NIF for easy testing
-/// But normally, you'd want to call `apply_elixir_fun` from some other Rust code instead.
+/// But normally, you'd want to call `rustler_elixir_fun::apply_elixir_fun`
+/// from some other Rust code (rather than from Elixir) instead.
 fn apply_elixir_fun_nif<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
-    rustler_elixir_fun_sys::apply_elixir_fun(env, pid_or_name, fun, parameters)
+    rustler_elixir_fun::apply_elixir_fun(env, pid_or_name, fun, parameters)
 }
 
 #[rustler::nif]
-/// Called by the Elixir code whenever a function run is completed.
+/// Called by the internal Elixir code of this library whenever a function is completed.
 ///
-/// Should not be called manually from the Elixir side.
+/// Should not be called manually from your own Elixir code.
 fn fill_future<'a>(result: StoredTerm, future: ResourceArc<ManualFuture>) {
     future.fill(result);
 }

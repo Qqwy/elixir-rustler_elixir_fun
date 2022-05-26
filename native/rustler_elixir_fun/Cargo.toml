@@ -1,5 +1,5 @@
 [package]
-name = "rustler_elixir_fun"
+name = "rustler_elixir_fun_nif"
 version = "0.1.0"
 authors = ["Qqwy/Wiebe-Marten Wijnja"]
 edition = "2018"
@@ -7,10 +7,10 @@ edition = "2018"
 [lib]
 name = "rustler_elixir_fun"
 path = "src/lib.rs"
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.25.0"
 rustler_sys = "2.2.0"
-rustler_elixir_fun_sys = {path = "./rustler_elixir_fun_sys/", version = "0.1.0"}
+rustler_elixir_fun = {path = "./rustler_elixir_fun", version = "0.1.0"}
 rustler_stored_term = {path = "./rustler_stored_term/", version = "0.1.0"}

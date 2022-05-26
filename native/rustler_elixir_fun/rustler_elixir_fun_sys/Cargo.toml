@@ -1,0 +1,11 @@
+[package]
+name = "rustler_elixir_fun_sys"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustler = "0.25.0"
+rustler_sys = "2.2.0"
+rustler_stored_term = {path = "../rustler_stored_term/", version = "0.1.0"}

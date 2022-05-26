@@ -88,16 +88,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustler_elixir_fun"
-version = "0.1.0"
-dependencies = [
- "rustler",
- "rustler_elixir_fun_sys",
- "rustler_stored_term",
- "rustler_sys",
-]
-
-[[package]]
 name = "rustler_elixir_fun_sys"
 version = "0.1.0"
 dependencies = [

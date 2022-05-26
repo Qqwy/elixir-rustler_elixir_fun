@@ -9,6 +9,7 @@ use rustler::wrapper::ErlNifPid;
 use std::sync::{Mutex, Condvar};
 use std::time::Duration;
 use crate::stored_term::StoredTerm;
+use cpuprofiler::PROFILER;
 
 struct ManualFuture {
     mutex: Mutex<Option<StoredTerm>>,
@@ -117,6 +118,8 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
     if !parameters.is_list() {
         return Err(Error::BadArg)
     }
+    // let before = Instant::now();
+    PROFILER.lock().unwrap().start("./my-prof.profile").unwrap();
 
     let future = ResourceArc::new(ManualFuture::new());
     let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
@@ -124,6 +127,10 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
 
     let result = future.wait_until_filled()?;
     let result = result.encode(env);
+
+    // println!("Elapsed time: {:.2?}", before.elapsed());
+    PROFILER.lock().unwrap().stop().unwrap();
+
     Ok(result)
 }
 

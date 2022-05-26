@@ -12,3 +12,10 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 rustler = "0.25.0"
 rustler_sys = "2.2.0"
+cpuprofiler = "0.0.4"
+
+[profile.release]
+debug = true
+
+[profile.bench]
+debug = true

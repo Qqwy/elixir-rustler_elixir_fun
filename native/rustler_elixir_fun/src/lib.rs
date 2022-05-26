@@ -6,8 +6,9 @@ use rustler::error::Error;
 use rustler_sys;
 use std::mem::MaybeUninit;
 use rustler::wrapper::ErlNifPid;
-use std::sync::{Mutex, Condvar};
+// use std::sync::{Mutex, Condvar};
 use std::time::Duration;
+use parking_lot::{Mutex, Condvar};
 use crate::stored_term::StoredTerm;
 
 struct ManualFuture {
@@ -21,12 +22,13 @@ impl ManualFuture {
     }
 
     pub fn wait_until_filled(& self) -> Result<StoredTerm, Error> {
-        let (mut guard, wait_timeout_result) = self.cond.wait_timeout_while(
-            self.mutex.lock().unwrap(),
+        let mut guard = self.mutex.lock();
+        let wait_timeout_result = self.cond.wait_for(
+            &mut guard,
             Duration::from_millis(5000),
-            |pending| { pending.is_none() }
-        )
-            .unwrap();
+            // |pending| { pending.is_none() }
+        );
+            // .unwrap();
         if wait_timeout_result.timed_out() {
             // println!("{}", "Unfortunately timed out!")
             Err(Error::Term(Box::new("Unfortunately timed out!".to_string())))
@@ -37,7 +39,7 @@ impl ManualFuture {
         // println!("{:?}", guard)
     }
     pub fn fill(&self, value: StoredTerm) {
-        let mut started = self.mutex.lock().unwrap();
+        let mut started = self.mutex.lock();
         *started = Some(value);
         self.cond.notify_all();
     }

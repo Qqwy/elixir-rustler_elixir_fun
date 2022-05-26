@@ -12,3 +12,4 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 rustler = "0.25.0"
 rustler_sys = "2.2.0"
+parking_lot = "0.7.1"

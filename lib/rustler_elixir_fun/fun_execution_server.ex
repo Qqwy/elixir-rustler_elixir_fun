@@ -7,15 +7,15 @@ defmodule RustlerElixirFun.FunExecutionServer do
 
 
     iex> {:ok, pid} = RustlerElixirFun.FunExecutionServer.start_link([])
-    iex> RustlerElixirFun.Internal.apply_elixir_fun(pid, fn x -> x * 2 end, [10]) end)
+    iex> RustlerElixirFun.Internal.apply_elixir_fun(pid, fn x -> x * 2 end, [10])
     {:ok, 20}
 
   It is recommended to use a registered name (and start the process in a supervision tree)
   to make sure that you won't have to handle checking PIDs for aliveness in native code:
 
     iex> {:ok, _} = RustlerElixirFun.FunExecutionServer.start_link([name: :my_fancy_worker_server])
-    iex> RustlerElixirFun.Internal.apply_elixir_fun(:my_fancy_worker_server, fn x -> x * 2 end, [42]) end)
-    {:ok, 42}
+    iex> RustlerElixirFun.Internal.apply_elixir_fun(:my_fancy_worker_server, fn x -> x * 2 end, [42])
+    {:ok, 84}
 
   If you might call a function many times in short succession, or want to call many different functions,
   it might make sense to use `RustlerElixirFun.Pool` instead.

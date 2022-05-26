@@ -1,8 +1,7 @@
 defmodule RustlerElixirFunTest do
   use ExUnit.Case
   doctest RustlerElixirFun
-
-  test "greets the world" do
-    assert RustlerElixirFun.hello() == :world
-  end
+  doctest RustlerElixirFun.Internal
+  doctest RustlerElixirFun.Pool
+  doctest RustlerElixirFun.FunExecutionServer
 end

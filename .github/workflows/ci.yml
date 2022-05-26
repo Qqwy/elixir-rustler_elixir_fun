@@ -1,0 +1,41 @@
+# create this in .github/workflows/ci.yml
+name: ci
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    strategy:
+      matrix:
+        otp: ['24.x', '25.x']
+        elixir: ['v1.13.x', '1.12.x']
+        exclude:
+          - otp: '25.x'
+            elixir: '1.12.x'
+    env:
+      MIX_ENV: test
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # NODE_COVERALLS_DEBUG: 1
+    steps:
+      - uses: actions/checkout@v2
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - uses: actions/cache@v2
+        id: mix-cache
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-${{ matrix.otp}}-${{ matrix.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.otp}}-${{ matrix.elixir }}-mix-
+      - if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: |
+          mix deps.get
+          mix deps.compile
+      - run: mix compile
+      # - run: mix test # Testing is already done as part of the next task:
+      - run: mix coveralls.github

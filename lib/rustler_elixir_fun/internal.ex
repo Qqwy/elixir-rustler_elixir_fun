@@ -1,7 +1,7 @@
 defmodule RustlerElixirFun.Internal do
   use Rustler,
     otp_app: :rustler_elixir_fun,
-    crate: :rustler_elixir_fun
+    crate: :rustler_elixir_fun_nif
 
   @doc """
   Calls the Rust NIF directly.

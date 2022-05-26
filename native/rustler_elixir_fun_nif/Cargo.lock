@@ -90,6 +90,8 @@ dependencies = [
 [[package]]
 name = "rustler_elixir_fun"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "961e526d0b89962e2dc3e8bcf35a4a8e495f472c025e76ee0810036a1bb75243"
 dependencies = [
  "rustler",
  "rustler_stored_term",
@@ -109,6 +111,8 @@ dependencies = [
 [[package]]
 name = "rustler_stored_term"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f42e37fdd7198a87732e366b18a65cf5e7ddd32c0f6072661a4d6564a65c19a8"
 dependencies = [
  "rustler",
 ]

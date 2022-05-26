@@ -12,5 +12,5 @@ crate-type = ["cdylib"]
 [dependencies]
 rustler = "0.25.0"
 rustler_sys = "2.2.0"
-rustler_elixir_fun = {path = "./rustler_elixir_fun", version = "0.1.0"}
-rustler_stored_term = {path = "./rustler_stored_term/", version = "0.1.0"}
+rustler_elixir_fun = "0.1.0"
+rustler_stored_term = "0.1.0"

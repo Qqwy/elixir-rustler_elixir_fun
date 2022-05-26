@@ -1,0 +1,4 @@
+# Ensures that we use the local in-repo versions of the libraries in development
+# Note that this file is _not_ copied to a package published on Hex as it is intentionally missing from the `mix.exs`.
+# c.f. https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#paths-overrides
+paths = ["./rustler_stored_term", "./rustler_elixir_fun"] 

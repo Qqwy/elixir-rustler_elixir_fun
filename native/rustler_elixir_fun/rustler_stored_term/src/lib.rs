@@ -8,7 +8,7 @@ use rustler::LocalPid;
 use rustler::NifResult;
 use rustler::Term;
 
-mod term_box;
+pub mod term_box;
 use term_box::TermBox;
 
 /// A StoredTerm is an arbitrary Elixir/Erlang term

@@ -1,5 +1,3 @@
-mod stored_term;
-
 use rustler::*;
 use rustler::types::LocalPid;
 use rustler::error::Error;
@@ -8,7 +6,7 @@ use std::mem::MaybeUninit;
 use rustler::wrapper::ErlNifPid;
 use std::sync::{Mutex, Condvar};
 use std::time::Duration;
-use crate::stored_term::StoredTerm;
+use rustler_stored_term::StoredTerm;
 
 struct ManualFuture {
     mutex: Mutex<Option<StoredTerm>>,

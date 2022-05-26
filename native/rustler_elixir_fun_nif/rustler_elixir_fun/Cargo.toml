@@ -6,6 +6,7 @@ license = "MIT"
 description = "Call Elixir functions from NIFs implemented in Rust."
 repository = "https://github.com/Qqwy/elixir-rustler_elixir_fun"
 authors = ["Qqwy/Wiebe-Marten Wijnja"]
+keywords = ["elixir", "erlang", "nif", "rustler", "function_application"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

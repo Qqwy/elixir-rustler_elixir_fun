@@ -6,6 +6,7 @@ license = "MIT"
 description = "Store arbitrary Elixir/Erlang terms inside any Rust datastructures you might be using inside your NIFs."
 repository = "https://github.com/Qqwy/elixir-rustler_elixir_fun"
 authors = ["Qqwy/Wiebe-Marten Wijnja"]
+keywords = ["elixir", "erlang", "nif", "rustler"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

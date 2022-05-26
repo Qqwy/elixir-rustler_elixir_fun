@@ -50,6 +50,7 @@ pub fn load(env: Env, _info: Term) -> bool {
 /// Uses [`enif_whereis_pid`](https://www.erlang.org/doc/man/erl_nif.html#enif_whereis_pid) under the hood.
 ///
 /// NOTE: Current implementation is very dirty, as we use transmutation to build a struct whose internals are not exposed by Rustler itself.
+/// There is an open PR on Rustler to add support properly: https://github.com/rusterlium/rustler/pull/456
 pub fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
     let mut enif_pid = MaybeUninit::uninit();
 

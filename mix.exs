@@ -9,9 +9,11 @@ defmodule RustlerElixirFun.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Call back into Elixir code from within a NIF implemented in Rust",
-      licenses: ["MIT"],
-      source_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
-      homepage_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
+      package: package(),
+      docs: [
+        extras: ["README.md"],
+        main: "readme"
+      ]
     ]
   end
 
@@ -29,7 +31,17 @@ defmodule RustlerElixirFun.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
 	    {:rustler, "~> 0.25.0"},
       {:poolboy, "~> 1.5.2"},
-      {:benchee, "~> 1.0", only: [:dev, :bench]}
+      {:benchee, "~> 1.0", only: [:dev, :bench]},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
+    ]
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      source_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
+      homepage_url: "https://github.com/Qqwy/elixir-rustler_elixir_fun",
+      links: %{"GitHub" => "https://github.com/Qqwy/elixir-rustler_elixir_fun"},
     ]
   end
 end

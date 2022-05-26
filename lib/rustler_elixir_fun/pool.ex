@@ -7,7 +7,7 @@ defmodule RustlerElixirFun.Pool do
 
   Currently uses the default options:
   ```
-  `#{inspect(@default_options)}
+  #{inspect(@default_options)}
   ```
 
   Note that when starting, the 'name' will be used as registered name for the `RustlerElixirFun.Pool.PoolMaster` process.

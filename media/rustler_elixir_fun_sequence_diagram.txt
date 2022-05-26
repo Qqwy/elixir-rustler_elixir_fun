@@ -1,0 +1,34 @@
+title RustlerElixirFun: How Elixir code is called from Native code
+
+participantgroup Rust
+participant "Your Native Code\n --(executing on the Dirty CPU Scheduler\n or on a non-OTP thread)--" as Your Native Code
+participant "rustler_elixir_fun::apply_elixir_fun\n **Rust**" as apply_elixir_function
+participant :0.1 "rustler_elixir_fun::fill_future \n **Rust** NIF (on normal Scheduler)" as fill_future
+end
+
+participantgroup Elixir
+participant FunExecutionServer
+end
+
+activate Your Native Code
+Your Native Code->*apply_elixir_function:apply_elixir_function(pid_or_name, function, parameters)
+activate apply_elixir_function
+box over apply_elixir_function:Create future
+box over apply_elixir_function:Look up PID for registered process name
+apply_elixir_function->(4)FunExecutionServer:send(pid, {function, parameters, future_ref})
+activate FunExecutionServer
+box over apply_elixir_function:Wait on future
+deactivate apply_elixir_function
+box over FunExecutionServer:result = apply(fun, parameters)
+FunExecutionServer->*fill_future:fill_future(future_ref, result)
+activate fill_future
+fill_future--#999999>>apply_elixir_function: Fills future
+activate apply_elixir_function
+box over apply_elixir_function:Extract result from future
+fill_future->FunExecutionServer::ok
+deactivate fill_future
+destroysilent fill_future
+deactivate FunExecutionServer
+apply_elixir_function->Your Native Code:result
+deactivate apply_elixir_function
+destroysilent apply_elixir_function

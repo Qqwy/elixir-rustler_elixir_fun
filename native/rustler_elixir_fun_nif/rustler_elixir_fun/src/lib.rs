@@ -100,8 +100,12 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
         return Err(Error::BadArg)
     }
 
-    let future = ResourceArc::new(ManualFuture::new());
-    let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
+    // let future = ResourceArc::new(ManualFuture::new());
+    // let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
+    let future = ManualFuture::new();
+    let future_ptr : *const ManualFuture = &future;
+    let raw_future_ptr = future_ptr as usize;
+    let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, raw_future_ptr.encode(env)]);
     send_to_elixir(env, pid_or_name, fun_tuple)?;
 
     let result = future.wait_until_filled()?;

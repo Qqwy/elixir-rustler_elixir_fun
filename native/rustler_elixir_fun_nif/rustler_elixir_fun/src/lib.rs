@@ -22,21 +22,18 @@ impl ManualFuture {
         ManualFuture {mutex: Mutex::new(None), cond: Condvar::new()}
     }
 
-    pub fn wait_until_filled(& self) -> Result<StoredTerm, Error> {
+    pub fn wait_until_filled(& self) -> Option<StoredTerm> {
         let (mut guard, wait_timeout_result) = self.cond.wait_timeout_while(
             self.mutex.lock().unwrap(),
             Duration::from_millis(5000),
             |pending| { pending.is_none() }
-        )
-            .unwrap();
+        ).expect("ManualFuture's Mutex was unexpectedly poisoned");
         if wait_timeout_result.timed_out() {
-            // println!("{}", "Unfortunately timed out!")
-            Err(Error::Term(Box::new("Unfortunately timed out!".to_string())))
+            None
         } else {
             let val = guard.take().unwrap();
-            Ok(val)
+            Some(val)
         }
-        // println!("{:?}", guard)
     }
     pub fn fill(&self, value: StoredTerm) {
         let mut started = self.mutex.lock().unwrap();
@@ -129,13 +126,10 @@ impl Encoder for ElixirFunCallResult {
 /// Will run `fun` with the parameters `parameters`
 /// on the process indicated by `pid_or_name`.
 ///
-/// On success, returns an Ok result whose content is a term which might be one of:
-/// - `{:ok, some_term}` on a successfull function call.
-/// - `{:error, {:exception, some_exception}}` if the function `raise`d an exception.
-/// - `{:error, {:exit, exit_message}}` if an exit was caught.
-/// - `{:error, {:throw, value}}` if a value was `throw`n.
+/// 'Raises' an ArgumentError (e.g. returns `Err(Error::BadArg)` on the Rust side) if `fun` is not a function or `parameters` is not a list.
 ///
-/// Raises an ArgumentError (e.g. returns `Err(Error::BadArg)` on the Rust side) if `fun` is not a function or `parameters` is not a list.
+/// Even with proper parameters, the function call itself might fail.
+/// All various scenarios are handled by the `ElixirFunCallResult` type.
 ///
 /// # Notes
 ///
@@ -160,9 +154,10 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
     let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, raw_future_ptr.encode(env)]);
     send_to_elixir(env, pid_or_name, fun_tuple)?;
 
-    let result = future.wait_until_filled()?;
-    let result = parse_fun_call_result(env, result);
-    Ok(result)
+    match future.wait_until_filled() {
+        None => Ok(TimedOut),
+        Some(result) => Ok(parse_fun_call_result(env, result))
+    }
 }
 
 fn parse_fun_call_result<'a>(env: Env<'a>, result: StoredTerm) -> ElixirFunCallResult {

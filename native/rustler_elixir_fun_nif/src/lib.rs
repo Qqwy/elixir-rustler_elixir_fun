@@ -4,8 +4,8 @@ use rustler_stored_term::StoredTerm;
 use rustler_elixir_fun;
 use rustler_elixir_fun::ManualFuture;
 
-fn load(env: Env, info: Term) -> bool {
-    rustler_elixir_fun::load(env, info)
+fn load(_env: Env, _info: Term) -> bool {
+    true
 }
 
 mod atoms {
@@ -23,7 +23,7 @@ mod atoms {
 /// But normally, you'd want to call `rustler_elixir_fun::apply_elixir_fun`
 /// from some other Rust code (rather than from Elixir) instead.
 fn apply_elixir_fun_nif<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
-    rustler_elixir_fun::apply_elixir_fun(env, pid_or_name, fun, parameters)
+    Ok(rustler_elixir_fun::apply_elixir_fun(env, pid_or_name, fun, parameters)?.encode(env))
 }
 
 #[rustler::nif]

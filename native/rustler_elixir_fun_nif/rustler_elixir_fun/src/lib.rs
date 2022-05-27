@@ -1,5 +1,6 @@
 use rustler::*;
 use rustler::types::LocalPid;
+use rustler::types::tuple::make_tuple;
 use rustler::error::Error;
 use rustler_sys;
 use std::mem::MaybeUninit;
@@ -7,6 +8,9 @@ use rustler::wrapper::ErlNifPid;
 use std::sync::{Mutex, Condvar};
 use std::time::Duration;
 use rustler_stored_term::StoredTerm;
+use rustler_stored_term::StoredTerm::{AnAtom, Tuple};
+
+use crate::ElixirFunCallResult::*;
 
 pub struct ManualFuture {
     mutex: Mutex<Option<StoredTerm>>,
@@ -41,9 +45,20 @@ impl ManualFuture {
     }
 }
 
-pub fn load(env: Env, _info: Term) -> bool {
-    rustler::resource!(ManualFuture, env);
-    true
+// pub fn load(env: Env, _info: Term) -> bool {
+//     // rustler::resource!(ManualFuture, env);
+//     true
+// }
+
+mod atoms {
+    rustler::atoms! {
+        ok,
+        error,
+        exception,
+        exit,
+        throw,
+        timeout,
+    }
 }
 
 /// Attempts to turn `name` into a LocalPid
@@ -74,6 +89,43 @@ fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<()
     Ok(())
 }
 
+#[derive(Clone)]
+/// The result of calling a function on the Elixir side.
+///
+/// This enum exists because we want to handle all possible failure scenarios correctly.
+///
+/// ElixirFunCallResult implements the `rustler::types::Encoder` trait,
+/// to allow you to convert the result back into a `Term<'a>` representation for easy debugging.
+///
+/// However, more useful is usually to pattern-match in Rust on the resulting values instead,
+/// and only encode the inner `StoredTerm` afterwards.
+pub enum ElixirFunCallResult {
+    /// The happy path: The function completed successfully. In Elixir, this looks like `{:ok, value}`
+    Success(StoredTerm),
+    /// An exception was raised. In Elixir, this looks like `{:error, {:exception, some_exception}}`
+    ExceptionRaised(StoredTerm),
+    /// The code attempted to exit the process using a call to `exit(val)`. In Elixir, this looks like `{:error, {:exit, val}}`
+    Exited(StoredTerm),
+    /// A raw value was thrown using `throw(val)`. In Elixir, this looks like `{:error, {:thrown, val}}`
+    ValueThrown(StoredTerm),
+    /// The function took too long to complete. In Elixir, this looks like `{:error, :timeout}`
+    TimedOut,
+}
+
+impl Encoder for ElixirFunCallResult {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let result = match self {
+            Success(term) => Ok(term),
+            ExceptionRaised(term) => Err(make_tuple(env, &[atoms::exception().to_term(env), term.encode(env)])),
+            Exited(term) => Err(make_tuple(env, &[atoms::exit().to_term(env), term.encode(env)])),
+            ValueThrown(term) => Err(make_tuple(env, &[atoms::throw().to_term(env), term.encode(env)])),
+            TimedOut => Err(atoms::timeout().to_term(env))
+        };
+
+        result.encode(env)
+    }
+}
+
 /// Will run `fun` with the parameters `parameters`
 /// on the process indicated by `pid_or_name`.
 ///
@@ -91,7 +143,7 @@ fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<()
 ///   This is important for two reasons:
 ///     1. calling back into Elixir might indeed take quite some time.
 ///     2. we want to prevent schedulers to wait for themselves, which might otherwise sometimes happen.
-pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<Term<'a>, Error> {
+pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<ElixirFunCallResult, Error> {
     if !fun.is_fun() {
         return Err(Error::BadArg)
     }
@@ -109,6 +161,25 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
     send_to_elixir(env, pid_or_name, fun_tuple)?;
 
     let result = future.wait_until_filled()?;
-    let result = result.encode(env);
+    let result = parse_fun_call_result(env, result);
     Ok(result)
+}
+
+fn parse_fun_call_result<'a>(env: Env<'a>, result: StoredTerm) -> ElixirFunCallResult {
+    match result {
+        Tuple(ref tuple) =>
+            match &tuple[..] {
+                [AnAtom(ok), value] if ok == &rustler::types::atom::ok() => Success(value.clone()),
+                [AnAtom(error), Tuple(ref error_tuple)] if error == &atoms::error() => {
+                    match &error_tuple[..] {
+                        [AnAtom(exception), problem] if exception == &atoms::exception() => ExceptionRaised(problem.clone()),
+                        [AnAtom(exit), problem] if exit == &atoms::exit() => Exited(problem.clone()),
+                        [AnAtom(throw), problem] if throw == &atoms::throw() => ValueThrown(problem.clone()),
+                        _ => panic!("RustlerElixirFun's function wrapper returned an unexpected error tuple result: {:?}", result.encode(env))
+                    }
+                },
+                _ => panic!("RustlerElixirFun's function wrapper returned an unexpected tuple result: {:?}", result.encode(env))
+            },
+        _ => panic!("RustlerElixirFun's function wrapper returned an unexpected result: {:?}", result.encode(env))
+    }
 }

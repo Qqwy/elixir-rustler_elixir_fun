@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "rustler_elixir_fun"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rustler",
  "rustler_stored_term",

@@ -22,10 +22,10 @@ impl ManualFuture {
         ManualFuture {mutex: Mutex::new(None), cond: Condvar::new()}
     }
 
-    pub fn wait_until_filled(& self) -> Option<StoredTerm> {
+    pub fn wait_until_filled(& self, timeout: Duration) -> Option<StoredTerm> {
         let (mut guard, wait_timeout_result) = self.cond.wait_timeout_while(
             self.mutex.lock().unwrap(),
-            Duration::from_millis(5000),
+            timeout,
             |pending| { pending.is_none() }
         ).expect("ManualFuture's Mutex was unexpectedly poisoned");
         if wait_timeout_result.timed_out() {
@@ -133,11 +133,17 @@ impl Encoder for ElixirFunCallResult {
 ///
 /// # Notes
 ///
+/// - It waits for a maximum of 5000 milliseconds before returning an `Ok(TimedOut)`.
 /// - Be sure to register any NIF that calls this function as a 'Dirty CPU NIF'! (by using `#[rustler::nif(schedule = "DirtyCpu")]`).
 ///   This is important for two reasons:
 ///     1. calling back into Elixir might indeed take quite some time.
 ///     2. we want to prevent schedulers to wait for themselves, which might otherwise sometimes happen.
 pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<ElixirFunCallResult, Error> {
+    apply_elixir_fun_timeout(env, pid_or_name, fun, parameters, Duration::from_millis(5000))
+}
+
+/// Works the same as `apply_elixir_fun` but allows customizing the timeout to wait for the function to return.
+pub fn apply_elixir_fun_timeout<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>, timeout: Duration) -> Result<ElixirFunCallResult, Error> {
     if !fun.is_fun() {
         return Err(Error::BadArg)
     }
@@ -154,7 +160,7 @@ pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, 
     let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, raw_future_ptr.encode(env)]);
     send_to_elixir(env, pid_or_name, fun_tuple)?;
 
-    match future.wait_until_filled() {
+    match future.wait_until_filled(timeout) {
         None => Ok(TimedOut),
         Some(result) => Ok(parse_fun_call_result(env, result))
     }

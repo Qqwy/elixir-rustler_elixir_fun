@@ -15,5 +15,5 @@ defmodule RustlerElixirFun.Internal do
   # Called internally by the wrapper process
   # once it has finished running the elixir function,
   # but should not ever be called directly.
-  def fill_future(_result, _future), do: :erlang.nif_error(:nif_not_loaded)
+  def fill_future(_result, _future_ptr), do: :erlang.nif_error(:nif_not_loaded)
 end

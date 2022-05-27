@@ -34,20 +34,20 @@ defmodule RustlerElixirFun.FunExecutionServer do
 
   @impl true
   # Used when called directly from native code
-  def handle_info({fun, params, future}, state) when is_function(fun) and is_list(params) and is_reference(future) do
-    run_function(fun, params, future)
+  def handle_info({fun, params, future_ptr}, state) when is_function(fun) and is_list(params) and is_integer(future_ptr) do
+    run_function(fun, params, future_ptr)
     {:noreply, state}
   end
 
   @impl true
   # Used when called from a pool
-  def handle_cast({{fun, params, future}, from}, state) when is_function(fun) and is_list(params) and is_reference(future) do
-    run_function(fun, params, future)
+  def handle_cast({{fun, params, future_ptr}, from}, state) when is_function(fun) and is_list(params) and is_integer(future_ptr) do
+    run_function(fun, params, future_ptr)
     GenServer.cast(from, {:checkin, self()})
     {:noreply, state}
   end
 
-  defp run_function(fun, params, future) do
+  defp run_function(fun, params, future_ptr) do
     result =
       try do
         apply(fun, params)
@@ -61,6 +61,6 @@ defmodule RustlerElixirFun.FunExecutionServer do
         good_result ->
           {:ok, good_result}
       end
-    RustlerElixirFun.Internal.fill_future(result, future)
+    RustlerElixirFun.Internal.fill_future(result, future_ptr)
   end
 end

@@ -15,9 +15,9 @@ defmodule RustlerElixirFun.Pool.PoolMaster do
   end
 
   @impl true
-  def handle_info({fun, params, future}, state) when is_function(fun) and is_list(params) and is_reference(future) do
+  def handle_info({fun, params, future_ptr}, state) when is_function(fun) and is_list(params) and is_integer(future_ptr) do
     worker = :poolboy.checkout(RustlerElixirFun.Pool.poolboy_pool_name(state.pool_name))
-    GenServer.cast(worker, {{fun, params, future}, self()})
+    GenServer.cast(worker, {{fun, params, future_ptr}, self()})
     {:noreply, state}
   end
 

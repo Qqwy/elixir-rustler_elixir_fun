@@ -14,14 +14,14 @@ First, add the [Rust crate](https://crates.io/crates/rustler_elixir_fun) to your
 
 ```
 [dependencies]
-rustler_elixir_fun = "0.1.0"
+rustler_elixir_fun = "0.3.0"
 ```
 
 Secondly, add the [Elixir library](https://hex.pm/packages/rustler_elixir_fun) to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:rustler_elixir_fun, "~> 0.1.0"}
+    {:rustler_elixir_fun, "~> 0.3.0"}
   ]
 end
 ```

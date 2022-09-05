@@ -29,7 +29,7 @@ defmodule RustlerElixirFun.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-	    {:rustler, "~> 0.25.0"},
+	    {:rustler, "~> 0.26.0"},
       {:poolboy, "~> 1.5.2"},
       {:benchee, "~> 1.0", only: [:dev, :bench]},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}

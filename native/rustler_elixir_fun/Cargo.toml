@@ -1,6 +1,6 @@
 [package]
 name = "rustler_elixir_fun"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 description = "Call Elixir functions from NIFs implemented in Rust."
@@ -11,6 +11,5 @@ keywords = ["elixir", "erlang", "nif", "rustler", "function_application"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rustler = "0.25.0"
-rustler_sys = "2.2.0"
-rustler_stored_term = {path = "../rustler_stored_term/", version = "0.1.0"}
+rustler = "0.38.0"
+rustler_stored_term = {path = "../rustler_stored_term", version = "0.2.0"}

@@ -26,3 +26,5 @@ rustler_elixir_fun-*.tar
 /tmp/
 /priv/native/
 *.~undo-tree~
+
+target/

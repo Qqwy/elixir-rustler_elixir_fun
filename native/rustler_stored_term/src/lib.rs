@@ -32,7 +32,6 @@ pub enum StoredTerm {
     Float(f64),
     AnAtom(Atom),
     Tuple(Vec<StoredTerm>),
-    EmptyList(),
     List(Vec<StoredTerm>),
     Bitstring(String),
     Pid(LocalPid),
@@ -49,7 +48,6 @@ impl Encoder for StoredTerm {
                 let terms: Vec<_> = inner.iter().map(|t| t.encode(env)).collect();
                 make_tuple(env, terms.as_ref()).encode(env)
             }
-            StoredTerm::EmptyList() => rustler::Term::list_new_empty(env),
             StoredTerm::List(inner) => inner.encode(env),
             StoredTerm::Bitstring(inner) => inner.encode(env),
             StoredTerm::Pid(inner) => inner.encode(env),
@@ -68,12 +66,11 @@ fn convert_to_stored_term(term: &Term) -> StoredTerm {
             .decode()
             .map(StoredTerm::Bitstring)
             .expect("get_type() returned Binary but could not decode as binary?!"),
-        rustler::TermType::Number => term
+        rustler::TermType::Integer | rustler::TermType::Float => term
             .decode::<i64>()
             .map(StoredTerm::Integer)
             .or_else(|_| term.decode::<f64>().map(StoredTerm::Float))
             .unwrap_or_else(|_| StoredTerm::Other(TermBox::new(term))), // <- To handle bignums
-        rustler::TermType::EmptyList => StoredTerm::EmptyList(),
         rustler::TermType::List => {
             let items = term
                 .decode::<Vec<Term>>()

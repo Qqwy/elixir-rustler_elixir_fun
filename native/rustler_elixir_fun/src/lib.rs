@@ -1,14 +1,11 @@
-use rustler::*;
-use rustler::types::LocalPid;
-use rustler::types::tuple::make_tuple;
 use rustler::error::Error;
-use rustler_sys;
-use std::mem::MaybeUninit;
-use rustler::wrapper::ErlNifPid;
-use std::sync::{Mutex, Condvar};
-use std::time::Duration;
+use rustler::types::tuple::make_tuple;
+use rustler::types::LocalPid;
+use rustler::*;
 use rustler_stored_term::StoredTerm;
 use rustler_stored_term::StoredTerm::{AnAtom, Tuple};
+use std::sync::{Condvar, Mutex};
+use std::time::Duration;
 
 use crate::ElixirFunCallResult::*;
 
@@ -19,15 +16,19 @@ pub struct ManualFuture {
 
 impl ManualFuture {
     pub fn new() -> ManualFuture {
-        ManualFuture {mutex: Mutex::new(None), cond: Condvar::new()}
+        ManualFuture {
+            mutex: Mutex::new(None),
+            cond: Condvar::new(),
+        }
     }
 
-    pub fn wait_until_filled(& self, timeout: Duration) -> Option<StoredTerm> {
-        let (mut guard, wait_timeout_result) = self.cond.wait_timeout_while(
-            self.mutex.lock().unwrap(),
-            timeout,
-            |pending| { pending.is_none() }
-        ).expect("ManualFuture's Mutex was unexpectedly poisoned");
+    pub fn wait_until_filled(&self, timeout: Duration) -> Option<StoredTerm> {
+        let (mut guard, wait_timeout_result) = self
+            .cond
+            .wait_timeout_while(self.mutex.lock().unwrap(), timeout, |pending| {
+                pending.is_none()
+            })
+            .expect("ManualFuture's Mutex was unexpectedly poisoned");
         if wait_timeout_result.timed_out() {
             None
         } else {
@@ -58,31 +59,12 @@ mod atoms {
     }
 }
 
-/// Attempts to turn `name` into a LocalPid
-/// Uses [`enif_whereis_pid`](https://www.erlang.org/doc/man/erl_nif.html#enif_whereis_pid) under the hood.
-///
-/// NOTE: Current implementation is very dirty, as we use transmutation to build a struct whose internals are not exposed by Rustler itself.
-/// There is an open PR on Rustler to add support properly: https://github.com/rusterlium/rustler/pull/456
-pub fn whereis_pid<'a>(env: Env<'a>, name: Term<'a>) -> Result<LocalPid, Error> {
-    let mut enif_pid = MaybeUninit::uninit();
-
-    if unsafe { rustler_sys::enif_whereis_pid(env.as_c_arg(), name.as_c_arg(), enif_pid.as_mut_ptr()) } == 0 {
-        Err(Error::Term(Box::new("No pid registered under the given name.")))
-    } else {
-        // Safety: Initialized by successful enif call
-        let enif_pid = unsafe {enif_pid.assume_init()};
-
-        // Safety: Safe because `LocalPid` has only one field.
-        // NOTE: Dirty hack, but there is no other way to create a LocalPid exposed from `rustler`.
-        let pid = unsafe { std::mem::transmute::<ErlNifPid, LocalPid>(enif_pid) };
-        Ok(pid)
-    }
-}
-
 fn send_to_elixir<'a>(env: Env<'a>, pid: Term<'a>, value: Term<'a>) -> Result<(), Error> {
-    let pid : LocalPid = pid.decode().or_else(|_| whereis_pid(env, pid))?;
+    let pid: LocalPid = pid
+        .decode()
+        .or_else(|_| env.whereis_pid(pid).ok_or(Error::BadArg))?;
 
-    env.send(&pid, value);
+    let _ = env.send(&pid, value);
     Ok(())
 }
 
@@ -113,10 +95,19 @@ impl Encoder for ElixirFunCallResult {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let result = match self {
             Success(term) => Ok(term),
-            ExceptionRaised(term) => Err(make_tuple(env, &[atoms::exception().to_term(env), term.encode(env)])),
-            Exited(term) => Err(make_tuple(env, &[atoms::exit().to_term(env), term.encode(env)])),
-            ValueThrown(term) => Err(make_tuple(env, &[atoms::throw().to_term(env), term.encode(env)])),
-            TimedOut => Err(atoms::timeout().to_term(env))
+            ExceptionRaised(term) => Err(make_tuple(
+                env,
+                &[atoms::exception().to_term(env), term.encode(env)],
+            )),
+            Exited(term) => Err(make_tuple(
+                env,
+                &[atoms::exit().to_term(env), term.encode(env)],
+            )),
+            ValueThrown(term) => Err(make_tuple(
+                env,
+                &[atoms::throw().to_term(env), term.encode(env)],
+            )),
+            TimedOut => Err(atoms::timeout().to_term(env)),
         };
 
         result.encode(env)
@@ -138,31 +129,49 @@ impl Encoder for ElixirFunCallResult {
 ///   This is important for two reasons:
 ///     1. calling back into Elixir might indeed take quite some time.
 ///     2. we want to prevent schedulers to wait for themselves, which might otherwise sometimes happen.
-pub fn apply_elixir_fun<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>) -> Result<ElixirFunCallResult, Error> {
-    apply_elixir_fun_timeout(env, pid_or_name, fun, parameters, Duration::from_millis(5000))
+pub fn apply_elixir_fun<'a>(
+    env: Env<'a>,
+    pid_or_name: Term<'a>,
+    fun: Term<'a>,
+    parameters: Term<'a>,
+) -> Result<ElixirFunCallResult, Error> {
+    apply_elixir_fun_timeout(
+        env,
+        pid_or_name,
+        fun,
+        parameters,
+        Duration::from_millis(5000),
+    )
 }
 
 /// Works the same as `apply_elixir_fun` but allows customizing the timeout to wait for the function to return.
-pub fn apply_elixir_fun_timeout<'a>(env: Env<'a>, pid_or_name: Term<'a>, fun: Term<'a>, parameters: Term<'a>, timeout: Duration) -> Result<ElixirFunCallResult, Error> {
+pub fn apply_elixir_fun_timeout<'a>(
+    env: Env<'a>,
+    pid_or_name: Term<'a>,
+    fun: Term<'a>,
+    parameters: Term<'a>,
+    timeout: Duration,
+) -> Result<ElixirFunCallResult, Error> {
     if !fun.is_fun() {
-        return Err(Error::BadArg)
+        return Err(Error::BadArg);
     }
 
     if !parameters.is_list() {
-        return Err(Error::BadArg)
+        return Err(Error::BadArg);
     }
 
     // let future = ResourceArc::new(ManualFuture::new());
     // let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, future.encode(env)]);
     let future = ManualFuture::new();
-    let future_ptr : *const ManualFuture = &future;
+    let future_ptr: *const ManualFuture = &future;
     let raw_future_ptr = future_ptr as usize;
-    let fun_tuple = rustler::types::tuple::make_tuple(env, &[fun, parameters, raw_future_ptr.encode(env)]);
+    let fun_tuple =
+        rustler::types::tuple::make_tuple(env, &[fun, parameters, raw_future_ptr.encode(env)]);
     send_to_elixir(env, pid_or_name, fun_tuple)?;
 
     match future.wait_until_filled(timeout) {
         None => Ok(TimedOut),
-        Some(result) => Ok(parse_fun_call_result(env, result))
+        Some(result) => Ok(parse_fun_call_result(env, result)),
     }
 }
 

@@ -4,7 +4,7 @@ defmodule RustlerElixirFun.MixProject do
   def project do
     [
       app: :rustler_elixir_fun,
-      version: "0.3.0",
+      version: "0.4.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -50,7 +50,7 @@ defmodule RustlerElixirFun.MixProject do
         "media",
         "native/rustler_elixir_fun_nif/src",
         "native/rustler_elixir_fun_nif/Cargo.toml",
-        "native/rustler_elixir_fun_nif/Cargo.lock",
+        "Cargo.lock",
       ]
     ]
   end

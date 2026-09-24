@@ -1,6 +1,6 @@
 [package]
 name = "rustler_stored_term"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Store arbitrary Elixir/Erlang terms inside any Rust datastructures you might be using inside your NIFs."

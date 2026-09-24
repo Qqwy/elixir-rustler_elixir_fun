@@ -14,14 +14,14 @@ First, add the [Rust crate](https://crates.io/crates/rustler_elixir_fun) to your
 
 ```
 [dependencies]
-rustler_elixir_fun = "0.1.0"
+rustler_elixir_fun = "0.4.0"
 ```
 
 Secondly, add the [Elixir library](https://hex.pm/packages/rustler_elixir_fun) to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:rustler_elixir_fun, "~> 0.1.0"}
+    {:rustler_elixir_fun, "~> 0.4.0"}
   ]
 end
 ```
@@ -33,10 +33,10 @@ Make sure you have started either [`RustlerElixirFun.FunExecutionServer`](https:
 
 You'll probably want to start one or the other of these under your supervision tree, as a named process (See the Elixir documentation for more details).
 
-Now, in your Rust code, you'll want to call [`rustler_elixir_fun::apply_elixir_fun(env, pid_or_name, fun, parameters)`](https://docs.rs/rustler_elixir_fun/0.1.0/rustler_elixir_fun/fn.apply_elixir_fun.html).
+Now, in your Rust code, you'll want to call [`rustler_elixir_fun::apply_elixir_fun(env, pid_or_name, fun, parameters)`](https://docs.rs/rustler_elixir_fun/0.4.0/rustler_elixir_fun/fn.apply_elixir_fun.html).
 
 This will, assuming that `pid_or_name` refers to the server or pool you've started earlier, run the Elixir function `fun` by passing it the `parameters`, returning its result.
-See the [Rust documentation](https://docs.rs/rustler_elixir_fun/0.1.0/rustler_elixir_fun/fn.apply_elixir_fun.html) for more details.
+See the [Rust documentation](https://docs.rs/rustler_elixir_fun/0.4.0/rustler_elixir_fun/fn.apply_elixir_fun.html) for more details.
 
 ## Documentation
 

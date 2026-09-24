@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [
+    "native/rustler_elixir_fun_nif",
+    "native/rustler_elixir_fun",
+    "native/rustler_stored_term",
+]
